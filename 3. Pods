@@ -1,0 +1,992 @@
+# Kubernetes Pods | Deploy Your First App
+
+## Learning Objectives
+
+* Understand what a Pod is
+* Understand Pod vs Container
+* Learn why Kubernetes uses Pods instead of Containers directly
+* Learn Kubernetes YAML files
+* Understand kubectl
+* Install and use Minikube
+* Deploy your first Pod
+* Learn Pod debugging commands
+
+---
+
+# Why Kubernetes?
+
+Docker can run containers, but Kubernetes provides:
+
+* Container orchestration
+* Auto Scaling
+* Auto Healing
+* Load Balancing
+* Enterprise-level management
+* Cluster management
+
+Docker manages containers on a machine.
+
+Kubernetes manages containers across a cluster of machines.
+
+---
+
+# What is a Pod?
+
+A Pod is the smallest deployable unit in Kubernetes.
+
+Kubernetes does not directly deploy containers.
+
+Instead:
+
+```text
+Container
+    ↓
+Pod
+    ↓
+Kubernetes Deploys Pod
+```
+
+A Pod acts as a wrapper around one or more containers.
+
+Definition:
+
+> A Pod is a specification that defines how one or more containers should run.
+
+---
+
+# Why Not Deploy Containers Directly?
+
+In Docker:
+
+```bash
+docker run -d -p 80:80 nginx
+```
+
+Configuration is passed through command-line arguments.
+
+In Kubernetes:
+
+Everything is defined inside YAML files.
+
+Example:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+```
+
+Benefits:
+
+* Standardized configuration
+* Version control
+* Easy collaboration
+* Declarative approach
+* Repeatable deployments
+
+---
+
+# Pod = One or More Containers
+
+A Pod can contain:
+
+### Single Container
+
+```text
+Pod
+ └── Nginx Container
+```
+
+Most common.
+
+---
+
+### Multiple Containers
+
+```text
+Pod
+ ├── Application Container
+ └── Sidecar Container
+```
+
+Examples:
+
+* Logging container
+* Monitoring container
+* Init container
+
+---
+
+# Advantages of Multiple Containers in a Pod
+
+Containers inside the same Pod:
+
+### Share Network
+
+Both containers can communicate using:
+
+```text
+localhost
+```
+
+Example:
+
+```text
+App Container
+      |
+localhost
+      |
+Log Collector Container
+```
+
+---
+
+### Share Storage
+
+Containers can use the same volume.
+
+```text
+Shared Volume
+     / \
+Container A
+Container B
+```
+
+---
+
+### Easier Communication
+
+No service discovery needed.
+
+Simply use:
+
+```bash
+localhost
+```
+
+---
+
+# Pod Networking
+
+Every Pod receives its own IP address.
+
+Example:
+
+```text
+Pod A --> 10.244.0.5
+Pod B --> 10.244.0.6
+```
+
+Applications running inside containers can be accessed through the Pod IP.
+
+Important:
+
+* One Pod = One IP
+* All containers in the Pod share the same IP
+
+---
+
+# Why Pods Are Important
+
+Pods provide:
+
+* Abstraction layer
+* Resource sharing
+* Easier networking
+* Easier storage management
+* Standardized deployments
+
+Think:
+
+```text
+Docker --> Container
+
+Kubernetes --> Pod
+```
+
+---
+
+# YAML in Kubernetes
+
+Kubernetes follows a Declarative Model.
+
+Instead of writing commands:
+
+```bash
+docker run ...
+```
+
+You write YAML definitions.
+
+Examples:
+
+* Pod
+* Deployment
+* Service
+* ConfigMap
+* Secret
+* Ingress
+
+Everything in Kubernetes is defined using YAML.
+
+---
+
+# Important YAML Fields
+
+## apiVersion
+
+Defines API version.
+
+Example:
+
+```yaml
+apiVersion: v1
+```
+
+---
+
+## kind
+
+Defines resource type.
+
+Example:
+
+```yaml
+kind: Pod
+```
+
+---
+
+## metadata
+
+Contains resource information.
+
+Example:
+
+```yaml
+metadata:
+  name: nginx
+```
+
+---
+
+## spec
+
+Defines desired state.
+
+Example:
+
+```yaml
+spec:
+  containers:
+```
+
+---
+
+# kubectl
+
+kubectl is the command-line interface for Kubernetes.
+
+Think:
+
+```text
+Docker ---> docker CLI
+
+Kubernetes ---> kubectl
+```
+
+Used for:
+
+* Create resources
+* Delete resources
+* View resources
+* Debug resources
+
+---
+
+# Important kubectl Commands
+
+## Create Resource
+
+```bash
+kubectl apply -f pod.yaml
+```
+
+---
+
+## Get Pods
+
+```bash
+kubectl get pods
+```
+
+---
+
+## Get Detailed Information
+
+```bash
+kubectl describe pod nginx
+```
+
+---
+
+## View Logs
+
+```bash
+kubectl logs nginx
+```
+
+---
+
+## Delete Pod
+
+```bash
+kubectl delete pod nginx
+```
+
+---
+
+# Minikube
+
+Minikube creates a local Kubernetes cluster.
+
+Useful for:
+
+* Learning
+* Practice
+* Development
+
+Not generally used for production.
+
+---
+
+# Why Use Minikube?
+
+Advantages:
+
+* Free
+* Lightweight
+* Local setup
+* No cloud costs
+
+Alternative tools:
+
+* Minikube
+* Kind
+* K3s
+
+---
+
+# How Minikube Works
+
+Minikube creates:
+
+```text
+Virtual Machine
+      |
+Single Node Kubernetes Cluster
+```
+
+Inside the node:
+
+```text
+Control Plane
+Worker Node
+```
+
+Both run together for learning purposes.
+
+---
+
+# Production vs Minikube
+
+## Minikube
+
+```text
+Single Node
+```
+
+Used for:
+
+* Learning
+* Testing
+
+---
+
+## Production
+
+```text
+Control Plane Nodes
+      +
+Worker Nodes
+```
+
+Used for:
+
+* High Availability
+* Scalability
+* Fault Tolerance
+
+---
+
+# Creating First Pod
+
+Example YAML:
+
+```yaml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: nginx
+
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+```
+
+Apply:
+
+```bash
+kubectl apply -f pod.yaml
+```
+
+Verify:
+
+```bash
+kubectl get pods
+```
+
+---
+
+# Pod Lifecycle
+
+```text
+Write YAML
+      ↓
+kubectl apply
+      ↓
+API Server
+      ↓
+Scheduler
+      ↓
+Node
+      ↓
+Pod Running
+```
+
+---
+
+# Accessing the Application
+
+Check Pod:
+
+```bash
+kubectl get pods
+```
+
+Check IP:
+
+```bash
+kubectl get pods -o wide
+```
+
+---
+
+# Debugging Pods
+
+Most important commands from the video.
+
+## 1. Get Pods
+
+```bash
+kubectl get pods
+```
+
+Check:
+
+* Running
+* Pending
+* CrashLoopBackOff
+
+---
+
+## 2. Describe Pod
+
+```bash
+kubectl describe pod <pod-name>
+```
+
+Shows:
+
+* Events
+* Scheduling issues
+* Resource information
+* Errors
+
+Example:
+
+```bash
+kubectl describe pod nginx
+```
+
+---
+
+## 3. View Logs
+
+```bash
+kubectl logs <pod-name>
+```
+
+Example:
+
+```bash
+kubectl logs nginx
+```
+
+Used for:
+
+* Application debugging
+* Runtime errors
+* Startup failures
+
+---
+
+# Most Important Commands
+
+```bash
+kubectl get pods
+
+kubectl get pods -o wide
+
+kubectl describe pod nginx
+
+kubectl logs nginx
+
+kubectl delete pod nginx
+
+kubectl apply -f pod.yaml
+```
+
+---
+
+# Interview Questions
+
+## What is a Pod?
+
+A Pod is the smallest deployable unit in Kubernetes that encapsulates one or more containers.
+
+---
+
+## Why does Kubernetes use Pods?
+
+Pods provide:
+
+* Shared networking
+* Shared storage
+* Standardized deployment
+* Better abstraction
+
+---
+
+## Can a Pod have multiple containers?
+
+Yes.
+
+Examples:
+
+* Sidecar containers
+* Init containers
+* Logging containers
+
+---
+
+## What is kubectl?
+
+kubectl is the command-line tool used to interact with Kubernetes clusters.
+
+---
+
+## What is Minikube?
+
+Minikube is a tool that creates a local single-node Kubernetes cluster for development and learning.
+
+---
+
+# Quick Revision
+
+```text
+Pod = Smallest deployable unit
+
+Pod = One or More Containers
+
+One Pod = One IP Address
+
+Containers inside same Pod:
+✔ Share Network
+✔ Share Storage
+✔ Communicate using localhost
+
+kubectl = Kubernetes CLI
+
+Minikube = Local Kubernetes Cluster
+
+Debugging:
+kubectl get pods
+kubectl describe pod <pod-name>
+kubectl logs <pod-name>
+```
+
+# Additional Notes: kubectl apply vs create and -o Flag
+
+---
+
+# kubectl apply vs kubectl create
+
+Both commands are used to create Kubernetes resources from YAML files, but they work differently.
+
+## kubectl create
+
+### Syntax
+
+```bash
+kubectl create -f pod.yaml
+```
+
+### Behavior
+
+* Creates the resource only once.
+* Fails if the resource already exists.
+* Imperative approach.
+
+### Example
+
+First execution:
+
+```bash
+kubectl create -f nginx-pod.yaml
+```
+
+Output:
+
+```text
+pod/nginx created
+```
+
+Second execution:
+
+```bash
+kubectl create -f nginx-pod.yaml
+```
+
+Output:
+
+```text
+Error from server (AlreadyExists)
+```
+
+### Use Cases
+
+* Quick testing
+* Learning Kubernetes
+* Initial resource creation
+
+---
+
+## kubectl apply
+
+### Syntax
+
+```bash
+kubectl apply -f pod.yaml
+```
+
+### Behavior
+
+* Creates the resource if it does not exist.
+* Updates the resource if it already exists.
+* Declarative approach.
+* Compares desired state with current state.
+
+### Example
+
+First execution:
+
+```bash
+kubectl apply -f nginx-pod.yaml
+```
+
+Output:
+
+```text
+pod/nginx created
+```
+
+Modify YAML:
+
+```yaml
+image: nginx:latest
+```
+
+Run again:
+
+```bash
+kubectl apply -f nginx-pod.yaml
+```
+
+Output:
+
+```text
+pod/nginx configured
+```
+
+### Use Cases
+
+* Production environments
+* CI/CD pipelines
+* GitOps workflows
+* Infrastructure as Code
+
+---
+
+# Interview Question
+
+## Which command should we use in real projects?
+
+Answer:
+
+> In real-world Kubernetes projects, we typically use `kubectl apply` because it supports both creation and updates and follows Kubernetes' declarative model. `kubectl create` is mainly used for one-time creation or resource generation.
+
+---
+
+# Quick Comparison
+
+| Feature                   | kubectl create | kubectl apply |
+| ------------------------- | -------------- | ------------- |
+| Creates Resource          | Yes            | Yes           |
+| Updates Existing Resource | No             | Yes           |
+| Declarative               | No             | Yes           |
+| Used in CI/CD             | Rarely         | Very Common   |
+| Production Friendly       | No             | Yes           |
+
+### Easy Way to Remember
+
+```text
+create = Create Only
+
+apply = Create + Update
+```
+
+---
+
+# What is the -o Flag?
+
+The `-o` flag stands for:
+
+```text
+Output Format
+```
+
+It tells Kubernetes how to display the command output.
+
+### Syntax
+
+```bash
+kubectl get <resource> -o <format>
+```
+
+Example:
+
+```bash
+kubectl get pods -o wide
+```
+
+---
+
+# Common Output Formats
+
+## Default Output
+
+```bash
+kubectl get pods
+```
+
+Output:
+
+```text
+NAME      READY   STATUS
+nginx     1/1     Running
+```
+
+---
+
+## -o wide
+
+Shows additional details.
+
+```bash
+kubectl get pods -o wide
+```
+
+Output:
+
+```text
+NAME    READY   STATUS    IP            NODE
+nginx   1/1     Running   10.244.0.5    worker-1
+```
+
+### Additional Information
+
+* Pod IP
+* Node Name
+* Internal networking details
+
+---
+
+## -o yaml
+
+Displays complete resource definition.
+
+```bash
+kubectl get pod nginx -o yaml
+```
+
+Useful for:
+
+* Debugging
+* Understanding object structure
+* Learning Kubernetes
+
+---
+
+## -o json
+
+Displays the object in JSON format.
+
+```bash
+kubectl get pod nginx -o json
+```
+
+Useful for:
+
+* Automation
+* APIs
+* Scripting
+
+---
+
+## -o name
+
+Displays only resource names.
+
+```bash
+kubectl get pods -o name
+```
+
+Output:
+
+```text
+pod/nginx
+pod/redis
+```
+
+---
+
+## -o custom-columns
+
+Display selected fields.
+
+```bash
+kubectl get pods \
+-o custom-columns=NAME:.metadata.name,STATUS:.status.phase
+```
+
+Output:
+
+```text
+NAME    STATUS
+nginx   Running
+redis   Running
+```
+
+---
+
+## -o jsonpath
+
+Extract specific information.
+
+Get Pod IP:
+
+```bash
+kubectl get pod nginx \
+-o jsonpath='{.status.podIP}'
+```
+
+Output:
+
+```text
+10.244.0.5
+```
+
+Get all Pod names:
+
+```bash
+kubectl get pods \
+-o jsonpath='{.items[*].metadata.name}'
+```
+
+---
+
+# Most Commonly Used -o Formats
+
+| Format         | Purpose                  |
+| -------------- | ------------------------ |
+| wide           | Extra details            |
+| yaml           | Complete YAML definition |
+| json           | Complete JSON definition |
+| name           | Resource names only      |
+| custom-columns | Custom output            |
+| jsonpath       | Extract specific fields  |
+
+---
+
+# Interview Question
+
+## What is the purpose of the -o flag?
+
+Answer:
+
+> The `-o` flag stands for Output Format. It is used to control how Kubernetes displays command output. Common formats include `wide`, `yaml`, `json`, `name`, `custom-columns`, and `jsonpath`.
+
+---
+
+# Quick Revision
+
+```text
+-o = Output Format
+
+kubectl get pods -o wide
+kubectl get pod nginx -o yaml
+kubectl get pod nginx -o json
+kubectl get pods -o name
+
+create = Create Only
+
+apply = Create + Update
+
+Real Projects:
+✔ kubectl apply
+
+Interview Favorite:
+✔ Why apply over create?
+✔ What does -o do?
+✔ Difference between yaml and json output?
+```
+

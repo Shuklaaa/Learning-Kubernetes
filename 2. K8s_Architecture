@@ -1,0 +1,481 @@
+# Kubernetes Architecture
+
+## Overview
+
+Kubernetes is a container orchestration platform that automates the deployment, scaling, and management of containerized applications across a cluster of machines.
+
+## High-Level Architecture
+
+```text
+                    +----------------------+
+                    |     kubectl CLI      |
+                    +----------+-----------+
+                               |
+                               v
++------------------------------------------------------+
+|                  Control Plane                        |
+|------------------------------------------------------|
+| API Server  | Scheduler | Controller Manager | etcd  |
++------------------------------------------------------+
+                 |                         |
+                 |                         |
+                 v                         v
++----------------------+    +----------------------+
+|      Worker Node 1   |    |      Worker Node 2   |
+|----------------------|    |----------------------|
+| kubelet              |    | kubelet              |
+| kube-proxy           |    | kube-proxy           |
+| Container Runtime    |    | Container Runtime    |
+| Pods                 |    | Pods                 |
++----------------------+    +----------------------+
+```
+
+---
+
+# 1. Control Plane Components
+
+The Control Plane is responsible for managing the entire Kubernetes cluster.
+
+## API Server
+
+The API Server acts as the entry point for all Kubernetes operations.
+
+### Responsibilities
+
+* Accepts requests from users and tools
+* Validates requests
+* Updates cluster state
+* Communicates with other control plane components
+
+### Common Clients
+
+* kubectl
+* CI/CD pipelines
+* External applications
+* Controllers
+
+---
+
+## etcd
+
+etcd is a distributed key-value store used by Kubernetes.
+
+### Responsibilities
+
+* Stores cluster configuration
+* Stores application state
+* Stores metadata about resources
+
+### Key Point
+
+etcd is the **single source of truth** for the cluster.
+
+---
+
+## Scheduler
+
+The Scheduler decides where Pods should run.
+
+### Factors Considered
+
+* Available CPU
+* Available Memory
+* Node Affinity
+* Anti-Affinity Rules
+* Taints and Tolerations
+* Resource Requests and Limits
+
+### Example
+
+```text
+Pending Pod
+      |
+Scheduler
+      |
+Selected Node
+```
+
+---
+
+## Controller Manager
+
+The Controller Manager runs multiple controllers that continuously compare:
+
+* Desired State
+* Actual State
+
+and make changes to match them.
+
+### Common Controllers
+
+#### Deployment Controller
+
+Manages Deployments.
+
+#### ReplicaSet Controller
+
+Ensures the desired number of Pods are running.
+
+#### Node Controller
+
+Monitors node health.
+
+#### Job Controller
+
+Manages batch jobs.
+
+---
+
+## Cloud Controller Manager
+
+Used when Kubernetes runs in cloud environments such as:
+
+* AWS
+* Azure
+* GCP
+
+### Responsibilities
+
+* Load Balancer Management
+* Volume Management
+* Node Lifecycle Management
+
+---
+
+# 2. Worker Node Components
+
+Worker Nodes run application workloads.
+
+## kubelet
+
+kubelet is an agent running on every node.
+
+### Responsibilities
+
+* Communicates with API Server
+* Ensures Pods are running
+* Reports node status
+
+### Workflow
+
+```text
+API Server
+     |
+ kubelet
+     |
+ Containers
+```
+
+---
+
+## kube-proxy
+
+Handles networking for Services.
+
+### Responsibilities
+
+* Maintains network rules
+* Enables Service communication
+* Provides load balancing
+
+---
+
+## Container Runtime
+
+Responsible for running containers.
+
+### Examples
+
+* containerd
+* CRI-O
+
+> Docker is no longer the default runtime in modern Kubernetes.
+
+---
+
+## Pods
+
+A Pod is the smallest deployable unit in Kubernetes.
+
+### Pod Structure
+
+```text
+Pod
+ ├── Application Container
+ └── Sidecar Container
+```
+
+### Characteristics
+
+* Shared Network Namespace
+* Shared Storage
+* Shared Lifecycle
+
+---
+
+# 3. How a Pod Gets Created
+
+## Step 1: User Applies Manifest
+
+```bash
+kubectl apply -f deployment.yaml
+```
+
+---
+
+## Step 2: API Server Validates Request
+
+```text
+kubectl
+   |
+API Server
+```
+
+---
+
+## Step 3: Configuration Stored in etcd
+
+```text
+API Server ---> etcd
+```
+
+---
+
+## Step 4: Deployment Controller Creates ReplicaSet
+
+```text
+Deployment
+      |
+ReplicaSet
+```
+
+---
+
+## Step 5: ReplicaSet Creates Pods
+
+```text
+ReplicaSet ---> Pods
+```
+
+---
+
+## Step 6: Scheduler Assigns Node
+
+```text
+Pending Pod
+      |
+Scheduler
+      |
+Selected Node
+```
+
+---
+
+## Step 7: kubelet Pulls Image and Starts Containers
+
+```text
+Node
+ └── kubelet
+       └── containerd
+             └── Containers Running
+```
+
+---
+
+# 4. Kubernetes Networking
+
+Every Pod receives its own IP address.
+
+### Pod-to-Pod Communication
+
+```text
+Pod A ----> Pod B
+```
+
+Pods can communicate directly without Network Address Translation (NAT).
+
+---
+
+## Services
+
+A Service provides a stable endpoint for accessing Pods.
+
+### Service Architecture
+
+```text
+Client
+   |
+Service
+   |
++--------+--------+
+|                 |
+Pod1             Pod2
+```
+
+### Service Types
+
+#### ClusterIP
+
+Internal communication within the cluster.
+
+#### NodePort
+
+Exposes the application through a node port.
+
+#### LoadBalancer
+
+Creates an external load balancer.
+
+#### ExternalName
+
+Maps a service to an external DNS name.
+
+---
+
+## Ingress
+
+Ingress provides HTTP and HTTPS routing.
+
+### Architecture
+
+```text
+Internet
+    |
+Ingress
+    |
+Service
+    |
+Pods
+```
+
+### Benefits
+
+* Path-Based Routing
+* Host-Based Routing
+* SSL Termination
+
+---
+
+# 5. Common Kubernetes Objects
+
+| Object      | Purpose                       |
+| ----------- | ----------------------------- |
+| Pod         | Run containers                |
+| Deployment  | Manage stateless applications |
+| ReplicaSet  | Maintain desired pod count    |
+| StatefulSet | Manage stateful applications  |
+| DaemonSet   | Run one Pod on each node      |
+| Job         | Run batch workloads           |
+| CronJob     | Schedule recurring jobs       |
+| Service     | Provide network access        |
+| ConfigMap   | Store configuration data      |
+| Secret      | Store sensitive data          |
+| Ingress     | Manage external access        |
+
+---
+
+# 6. Complete Kubernetes Architecture Diagram
+
+```text
+                    User
+                      |
+                  kubectl
+                      |
+                      v
+               +-------------+
+               | API Server  |
+               +-------------+
+                 /    |    \
+                /     |     \
+               v      v      v
+          Scheduler Controllers etcd
+                |
+                v
+      +-----------------------+
+      |      Worker Nodes     |
+      +-----------------------+
+      | kubelet               |
+      | kube-proxy            |
+      | containerd            |
+      | Pods                  |
+      +-----------------------+
+```
+
+---
+
+# Core Kubernetes Concept: Desired State
+
+Kubernetes follows a declarative model.
+
+## Workflow
+
+1. User defines the desired state using YAML files.
+2. Kubernetes stores the desired state in etcd.
+3. Controllers continuously compare:
+
+   * Desired State
+   * Actual State
+4. If differences are detected, Kubernetes automatically takes corrective action.
+
+### Example
+
+Desired State:
+
+```yaml
+replicas: 3
+```
+
+Actual State:
+
+```yaml
+replicas: 2
+```
+
+Kubernetes automatically creates one additional Pod to achieve the desired state.
+
+This process is called the **Reconciliation Loop** and is the foundation of Kubernetes' self-healing capability.
+
+---
+
+# Interview Summary
+
+### Control Plane Components
+
+* API Server
+* Scheduler
+* Controller Manager
+* etcd
+* Cloud Controller Manager
+
+### Worker Node Components
+
+* kubelet
+* kube-proxy
+* Container Runtime
+* Pods
+
+### Kubernetes Flow
+
+```text
+kubectl
+   ↓
+API Server
+   ↓
+etcd
+   ↓
+Controller
+   ↓
+Scheduler
+   ↓
+Worker Node
+   ↓
+kubelet
+   ↓
+Container Runtime
+   ↓
+Pods Running
+```
+
+Remember:
+
+**API Server receives requests → etcd stores state → Controllers create resources → Scheduler selects nodes → kubelet runs containers → kube-proxy manages networking.**

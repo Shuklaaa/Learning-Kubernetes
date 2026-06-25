@@ -1,0 +1,682 @@
+Kubernetes Deployments & ReplicaSets
+
+## Learning Objectives
+
+* Difference between Container, Pod, ReplicaSet, and Deployment
+* Why Pods are not used directly in production
+* Understanding Auto-Healing
+* Understanding Scaling
+* Understanding ReplicaSets
+* Creating Deployments
+* Relationship between Deployment → ReplicaSet → Pod
+* Important kubectl commands
+* Common Interview Questions
+
+---
+
+# Evolution of Application Deployment
+
+## Docker World
+
+We create containers directly.
+
+```bash
+docker run -d nginx
+```
+
+Container lifecycle is managed by Docker.
+
+---
+
+## Kubernetes World
+
+We don't directly deploy containers.
+
+```text
+Container
+    ↓
+Pod
+```
+
+Pods are the smallest deployable unit.
+
+---
+
+## Real Production Kubernetes
+
+Even Pods are usually not created directly.
+
+Instead:
+
+```text
+Deployment
+      ↓
+ReplicaSet
+      ↓
+Pods
+      ↓
+Containers
+```
+
+This is the standard production architecture.
+
+---
+
+# Difference Between Container, Pod and Deployment
+
+## Container
+
+A running instance of an image.
+
+Example:
+
+```bash
+docker run nginx
+```
+
+Contains:
+
+* Application
+* Libraries
+* Dependencies
+
+---
+
+## Pod
+
+A Kubernetes wrapper around one or more containers.
+
+Example:
+
+```text
+Pod
+ └── Nginx Container
+```
+
+Characteristics:
+
+* Smallest deployable unit
+* Has its own IP
+* Can contain multiple containers
+* Shares network and storage
+
+---
+
+## Deployment
+
+A higher-level Kubernetes object.
+
+Purpose:
+
+* Creates Pods
+* Creates ReplicaSets
+* Supports auto-healing
+* Supports scaling
+* Supports rolling updates
+
+Interview Definition:
+
+> A Deployment is a Kubernetes resource used to manage Pods through ReplicaSets while providing scaling, self-healing, and update capabilities.
+
+---
+
+# Why Not Use Pods Directly?
+
+Suppose:
+
+```text
+Pod
+ └── Nginx
+```
+
+User accesses application.
+
+Now somebody accidentally deletes the Pod:
+
+```bash
+kubectl delete pod nginx
+```
+
+Result:
+
+```text
+Application Down
+```
+
+There is no controller managing the Pod.
+
+Kubernetes will NOT recreate it automatically.
+
+---
+
+# Problem with Direct Pod Creation
+
+### No Auto-Healing
+
+Deleted Pod remains deleted.
+
+### No Auto-Scaling
+
+Cannot easily increase instances.
+
+### No High Availability
+
+Single Pod = Single Point of Failure
+
+### No Load Distribution
+
+Only one instance available.
+
+---
+
+# Solution: Deployment
+
+Instead of creating Pods directly:
+
+```text
+Deployment
+```
+
+Deployment automatically creates:
+
+```text
+Deployment
+      ↓
+ReplicaSet
+      ↓
+Pods
+```
+
+This is the recommended approach.
+
+---
+
+# What is a ReplicaSet?
+
+ReplicaSet is a Kubernetes Controller.
+
+Its responsibility:
+
+```text
+Maintain Desired Number of Pods
+```
+
+Example:
+
+```yaml
+replicas: 3
+```
+
+ReplicaSet ensures:
+
+```text
+Always 3 Pods Running
+```
+
+---
+
+# ReplicaSet Auto-Healing
+
+Desired State:
+
+```text
+3 Pods
+```
+
+Current State:
+
+```text
+Pod1 Running
+Pod2 Running
+Pod3 Deleted
+```
+
+ReplicaSet notices:
+
+```text
+Desired = 3
+Current = 2
+```
+
+Action:
+
+```text
+Create New Pod
+```
+
+Result:
+
+```text
+3 Pods Running
+```
+
+This is called:
+
+## Auto-Healing
+
+Kubernetes automatically recovers from failures.
+
+---
+
+# Deployment Architecture
+
+```text
+Deployment
+      ↓
+ReplicaSet
+      ↓
+Pods
+      ↓
+Containers
+```
+
+Responsibilities:
+
+### Deployment
+
+* Manages application lifecycle
+* Handles updates
+* Handles rollbacks
+* Manages ReplicaSets
+
+### ReplicaSet
+
+* Maintains replica count
+
+### Pods
+
+* Run containers
+
+---
+
+# Deployment YAML Structure
+
+Example:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: nginx-deployment
+
+spec:
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: nginx
+
+  template:
+    metadata:
+      labels:
+        app: nginx
+
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+```
+
+---
+
+# Important Fields
+
+## replicas
+
+```yaml
+replicas: 3
+```
+
+Creates:
+
+```text
+3 Pods
+```
+
+---
+
+## selector
+
+```yaml
+selector:
+  matchLabels:
+    app: nginx
+```
+
+Used to identify Pods managed by ReplicaSet.
+
+---
+
+## template
+
+Template for creating Pods.
+
+Contains:
+
+```yaml
+template:
+```
+
+Everything inside this block becomes a Pod.
+
+---
+
+# Applying Deployment
+
+```bash
+kubectl apply -f deployment.yaml
+```
+
+Verify:
+
+```bash
+kubectl get deployments
+```
+
+---
+
+# Viewing ReplicaSets
+
+```bash
+kubectl get rs
+```
+
+Example:
+
+```text
+NAME                DESIRED   CURRENT
+nginx-deployment    3         3
+```
+
+ReplicaSets are automatically created by Deployments.
+
+---
+
+# Viewing Pods
+
+```bash
+kubectl get pods
+```
+
+Example:
+
+```text
+nginx-abc123
+nginx-def456
+nginx-ghi789
+```
+
+---
+
+# Get All Resources
+
+```bash
+kubectl get all
+```
+
+Shows:
+
+* Deployments
+* ReplicaSets
+* Pods
+* Services
+
+Current namespace only.
+
+---
+
+# Get Resources Across All Namespaces
+
+```bash
+kubectl get all -A
+```
+
+or
+
+```bash
+kubectl get all --all-namespaces
+```
+
+---
+
+# Watch Resources Live
+
+```bash
+kubectl get pods -w
+```
+
+Useful to watch:
+
+* Pod creation
+* Pod deletion
+* Pod recreation
+
+---
+
+# Demonstration of Auto-Healing
+
+Current State:
+
+```text
+3 Pods Running
+```
+
+Delete one:
+
+```bash
+kubectl delete pod <pod-name>
+```
+
+ReplicaSet immediately creates:
+
+```text
+New Pod
+```
+
+Application remains available.
+
+This is the key feature demonstrated in the video.
+
+---
+
+# Scaling Deployments
+
+Current:
+
+```yaml
+replicas: 3
+```
+
+Update:
+
+```yaml
+replicas: 5
+```
+
+Apply again:
+
+```bash
+kubectl apply -f deployment.yaml
+```
+
+Result:
+
+```text
+5 Pods Running
+```
+
+ReplicaSet creates additional Pods automatically.
+
+---
+
+# Auto-Scaling Concept
+
+Deployment supports scaling.
+
+Example:
+
+```text
+High Traffic
+      ↓
+Increase Replicas
+      ↓
+More Pods
+      ↓
+More Capacity
+```
+
+This is one reason organizations use Kubernetes.
+
+---
+
+# Zero Downtime Concept
+
+Deployment allows:
+
+* Create new Pods
+* Remove old Pods gradually
+
+Users continue accessing the application.
+
+Benefits:
+
+* No outage
+* Continuous availability
+
+This is the foundation for rolling updates.
+
+---
+
+# Important Commands
+
+Create Deployment
+
+```bash
+kubectl apply -f deployment.yaml
+```
+
+View Deployments
+
+```bash
+kubectl get deployments
+```
+
+View ReplicaSets
+
+```bash
+kubectl get rs
+```
+
+View Pods
+
+```bash
+kubectl get pods
+```
+
+View Detailed Info
+
+```bash
+kubectl describe deployment nginx-deployment
+```
+
+Delete Pod
+
+```bash
+kubectl delete pod <pod-name>
+```
+
+Watch Live
+
+```bash
+kubectl get pods -w
+```
+
+View Everything
+
+```bash
+kubectl get all
+```
+
+---
+
+# Interview Questions
+
+## Why should we use Deployments instead of Pods?
+
+Because Deployments provide:
+
+* Auto-Healing
+* Scaling
+* Rolling Updates
+* High Availability
+
+Pods alone do not.
+
+---
+
+## What is a ReplicaSet?
+
+A ReplicaSet is a Kubernetes controller that ensures the desired number of Pod replicas are always running.
+
+---
+
+## What happens when a Pod is deleted from a Deployment?
+
+ReplicaSet detects the missing Pod and creates a new one automatically.
+
+---
+
+## What is Auto-Healing?
+
+The ability of Kubernetes to automatically recreate failed or deleted Pods to maintain the desired state.
+
+---
+
+## Relationship Between Deployment, ReplicaSet and Pod?
+
+```text
+Deployment
+      ↓
+ReplicaSet
+      ↓
+Pods
+      ↓
+Containers
+```
+
+---
+
+# Quick Revision
+
+```text
+Container
+    ↓
+Pod
+    ↓
+ReplicaSet
+    ↓
+Deployment
+
+Pod:
+✔ Runs containers
+
+ReplicaSet:
+✔ Maintains desired number of pods
+
+Deployment:
+✔ Auto-Healing
+✔ Scaling
+✔ Rolling Updates
+
+Production:
+✔ Use Deployments
+✘ Don't create Pods directly
+
+Useful Commands:
+kubectl get deployments
+kubectl get rs
+kubectl get pods
+kubectl get all
+kubectl get pods -w
+```

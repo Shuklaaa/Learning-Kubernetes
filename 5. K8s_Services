@@ -1,0 +1,731 @@
+Kubernetes Services | Service Discovery | Load Balancing | Networking
+
+## Learning Objectives
+
+* Why Kubernetes Services are needed
+* Problems with accessing Pods directly
+* Service Discovery
+* Load Balancing
+* Labels and Selectors
+* Types of Kubernetes Services
+* ClusterIP
+* NodePort
+* LoadBalancer
+* Real-world use cases
+* Interview Questions
+
+---
+
+# Why Do We Need Services?
+
+In Day 34, we learned:
+
+```text
+Deployment
+     ↓
+ReplicaSet
+     ↓
+Pods
+```
+
+Pods are created and managed automatically.
+
+Problem:
+
+```text
+Pod-1
+IP = 10.244.0.5
+```
+
+If Pod crashes:
+
+```text
+Pod-1 Deleted
+```
+
+ReplicaSet creates:
+
+```text
+Pod-2
+IP = 10.244.0.9
+```
+
+New Pod gets a different IP address.
+
+---
+
+# Problem 1: Changing Pod IPs
+
+Suppose:
+
+```text
+Frontend Team
+      |
+      ↓
+Backend Pod
+10.244.0.5
+```
+
+Frontend is configured with:
+
+```text
+10.244.0.5
+```
+
+Pod crashes.
+
+ReplicaSet creates:
+
+```text
+10.244.0.9
+```
+
+Now:
+
+```text
+Frontend → 10.244.0.5
+```
+
+Connection fails.
+
+Application breaks.
+
+---
+
+# Problem 2: Multiple Replicas
+
+Deployment:
+
+```yaml
+replicas: 3
+```
+
+Creates:
+
+```text
+Pod-1 → 10.244.0.5
+Pod-2 → 10.244.0.6
+Pod-3 → 10.244.0.7
+```
+
+Question:
+
+Which IP should users use?
+
+```text
+10.244.0.5 ?
+10.244.0.6 ?
+10.244.0.7 ?
+```
+
+This becomes difficult to manage.
+
+---
+
+# Problem 3: External Access
+
+Pods run inside the cluster.
+
+Users outside the cluster cannot directly access them.
+
+Need a mechanism to expose applications.
+
+Example:
+
+```text
+Internet Users
+        |
+        ?
+        |
+      Pods
+```
+
+Solution:
+
+```text
+Kubernetes Service
+```
+
+---
+
+# What is a Kubernetes Service?
+
+Definition:
+
+> A Service is an abstraction layer that provides a stable endpoint for accessing Pods. It enables load balancing, service discovery, and application exposure.
+
+---
+
+# Benefits of Kubernetes Services
+
+Services provide:
+
+### 1. Load Balancing
+
+Traffic distributed across Pods.
+
+### 2. Service Discovery
+
+Pods can be found automatically.
+
+### 3. Application Exposure
+
+Applications can be accessed internally or externally.
+
+---
+
+# Service Architecture
+
+```text
+Users
+   |
+Service
+   |
++------+------+------+
+|      |      |      |
+Pod1  Pod2   Pod3
+```
+
+Users communicate with Service.
+
+Service communicates with Pods.
+
+Pods can change.
+
+Service remains constant.
+
+---
+
+# Advantage 1: Load Balancing
+
+Deployment:
+
+```yaml
+replicas: 3
+```
+
+Pods:
+
+```text
+Pod1
+Pod2
+Pod3
+```
+
+Users:
+
+```text
+User1
+User2
+User3
+```
+
+Without Service:
+
+```text
+User1 → Pod1
+User2 → Pod1
+User3 → Pod1
+```
+
+One Pod overloaded.
+
+With Service:
+
+```text
+User1 → Pod1
+User2 → Pod2
+User3 → Pod3
+```
+
+Traffic distributed evenly.
+
+---
+
+# Advantage 2: Service Discovery
+
+Pods are temporary.
+
+IPs change frequently.
+
+Instead of tracking IPs:
+
+Use Service Name.
+
+Example:
+
+```text
+payment-service
+```
+
+Application accesses:
+
+```text
+http://payment-service
+```
+
+instead of:
+
+```text
+http://10.244.0.5
+```
+
+Even if Pod IP changes:
+
+```text
+10.244.0.5 → 10.244.0.9
+```
+
+Service still works.
+
+---
+
+# Labels and Selectors
+
+This is one of the most important concepts.
+
+---
+
+## Labels
+
+Labels are key-value pairs attached to resources.
+
+Example:
+
+```yaml
+labels:
+  app: payment
+```
+
+---
+
+## Multiple Pods
+
+```yaml
+labels:
+  app: payment
+```
+
+Pod1
+
+```yaml
+labels:
+  app: payment
+```
+
+Pod2
+
+```yaml
+labels:
+  app: payment
+```
+
+Pod3
+
+---
+
+## Selector
+
+Service identifies Pods using labels.
+
+Example:
+
+```yaml
+selector:
+  app: payment
+```
+
+Meaning:
+
+```text
+Find all Pods
+where app=payment
+```
+
+Service does NOT care about IP addresses.
+
+It only cares about labels.
+
+---
+
+# Service Discovery Flow
+
+```text
+Service
+Selector:
+app=payment
+       |
+       |
++------+------+------+
+|      |      |      |
+Pod1  Pod2   Pod3
+```
+
+Whenever new Pods appear:
+
+```text
+app=payment
+```
+
+Service automatically discovers them.
+
+No manual changes required.
+
+---
+
+# Types of Kubernetes Services
+
+There are three important service types.
+
+```text
+ClusterIP
+NodePort
+LoadBalancer
+```
+
+---
+
+# 1. ClusterIP Service
+
+Default service type.
+
+```yaml
+type: ClusterIP
+```
+
+Architecture:
+
+```text
+Inside Cluster
+      |
+Service
+      |
+Pods
+```
+
+Only accessible from inside Kubernetes Cluster.
+
+External users cannot access it.
+
+---
+
+## Use Cases
+
+* Backend APIs
+* Internal databases
+* Internal microservices
+
+Example:
+
+```text
+Frontend Service
+      |
+Backend Service
+```
+
+Both inside cluster.
+
+---
+
+# 2. NodePort Service
+
+Allows access through worker nodes.
+
+```yaml
+type: NodePort
+```
+
+Architecture:
+
+```text
+User
+  |
+NodeIP:30007
+  |
+Service
+  |
+Pods
+```
+
+Users can access:
+
+```text
+<Node-IP>:<NodePort>
+```
+
+Example:
+
+```text
+192.168.49.2:30007
+```
+
+Useful in:
+
+* Learning
+* Testing
+* Internal company access
+
+---
+
+# 3. LoadBalancer Service
+
+Used mainly in Cloud Platforms.
+
+```yaml
+type: LoadBalancer
+```
+
+Architecture:
+
+```text
+Internet
+    |
+AWS ELB / Azure LB
+    |
+Service
+    |
+Pods
+```
+
+Cloud provider creates:
+
+```text
+Public IP Address
+```
+
+Users can access application globally.
+
+---
+
+# Real World Example
+
+Suppose you work at Amazon.
+
+Website:
+
+```text
+amazon.com
+```
+
+Millions of users access it.
+
+Service Type:
+
+```yaml
+type: LoadBalancer
+```
+
+Reason:
+
+```text
+Global Access Required
+```
+
+---
+
+# Comparison of Service Types
+
+| Feature                | ClusterIP | NodePort | LoadBalancer |
+| ---------------------- | --------- | -------- | ------------ |
+| Internal Access        | Yes       | Yes      | Yes          |
+| External Access        | No        | Yes      | Yes          |
+| Cloud Required         | No        | No       | Yes          |
+| Production Use         | Yes       | Limited  | Yes          |
+| Public Internet Access | No        | Limited  | Yes          |
+
+---
+
+# How Service Selects Pods
+
+Deployment:
+
+```yaml
+labels:
+  app: nginx
+```
+
+Service:
+
+```yaml
+selector:
+  app: nginx
+```
+
+Flow:
+
+```text
+Service
+   |
+app=nginx
+   |
++---------+
+| Pods    |
++---------+
+```
+
+Matching happens through labels and selectors.
+
+Not through IP addresses.
+
+---
+
+# Important Commands
+
+Create Service
+
+```bash
+kubectl apply -f service.yaml
+```
+
+View Services
+
+```bash
+kubectl get svc
+```
+
+or
+
+```bash
+kubectl get services
+```
+
+Describe Service
+
+```bash
+kubectl describe svc nginx-service
+```
+
+View All Resources
+
+```bash
+kubectl get all
+```
+
+---
+
+# Interview Questions
+
+## Why are Services required in Kubernetes?
+
+Services solve:
+
+* Pod IP changes
+* Load balancing
+* Service discovery
+* External access
+
+---
+
+## What is Service Discovery?
+
+A mechanism where Services use labels and selectors to automatically discover Pods.
+
+---
+
+## What is Load Balancing?
+
+Distributing traffic across multiple Pod replicas.
+
+---
+
+## Difference Between Labels and Selectors?
+
+Labels:
+
+```yaml
+app: nginx
+```
+
+Attached to Pods.
+
+Selectors:
+
+```yaml
+selector:
+  app: nginx
+```
+
+Used by Services to find Pods.
+
+---
+
+## What are the Types of Services?
+
+* ClusterIP
+* NodePort
+* LoadBalancer
+
+---
+
+## Which Service Type is Default?
+
+```text
+ClusterIP
+```
+
+---
+
+## Which Service Type Exposes Applications to the Internet?
+
+```text
+LoadBalancer
+```
+
+---
+
+# Quick Revision
+
+```text
+Problems Solved by Services:
+
+1. Load Balancing
+2. Service Discovery
+3. External Access
+
+Service finds Pods using:
+✔ Labels
+✔ Selectors
+
+Service Types:
+
+ClusterIP
+→ Internal Access Only
+
+NodePort
+→ Access via NodeIP:Port
+
+LoadBalancer
+→ Public Access
+
+Important Commands:
+
+kubectl get svc
+kubectl describe svc <service-name>
+kubectl apply -f service.yaml
+
+Interview Flow:
+
+Deployment
+     ↓
+ReplicaSet
+     ↓
+Pods
+     ↓
+Service
+     ↓
+Users
+
+
+Extra Interview Point (Very Important)
+
+Deployment manages Pods.
+Service manages network access to Pods.
+
+A common interview question is:
+
+"If Deployment already gives auto-healing, why do we need Services?"
+
+Answer:
+
+Deployments ensure Pods are running, but Services provide a stable endpoint, load balancing, and service discovery so applications can reliably communicate even when Pod IPs change.
+```
